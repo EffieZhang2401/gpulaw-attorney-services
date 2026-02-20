@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
 import { formatLegalDocument } from '@/lib/utils';
+import { ensureAuthenticated } from '@/lib/require-auth';
 import type { DocumentDraftRequest, DocumentDraftResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
+    const authError = await ensureAuthenticated();
+    if (authError) {
+      return authError;
+    }
+
     const body: DocumentDraftRequest = await request.json();
     const {
       documentType,

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useUser } from '@auth0/nextjs-auth0/client';
 import { useTranslations, useLocale } from 'next-intl';
 import DocumentAnalyzer from '@/components/DocumentAnalyzer';
 import LegalResearcher from '@/components/LegalResearcher';
@@ -14,8 +15,17 @@ type SidebarTool = 'analyzer' | 'researcher' | 'drafter' | 'reviewer';
 
 export default function Home() {
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
+  const { user, isLoading: authLoading } = useUser();
   const t = useTranslations();
   const locale = useLocale();
+  const isAuthenticated = Boolean(user);
+  const appBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+  const returnTo = encodeURIComponent(`${appBaseUrl.replace(/\/$/, '')}/${locale}`);
+  const loginHref = `/auth/login?returnTo=${returnTo}`;
+  const signUpHref = `/auth/login?screen_hint=signup&returnTo=${returnTo}`;
+  const logoutHref = `/auth/logout?returnTo=${returnTo}`;
 
   // Convert between activeTool and sidebarTool naming conventions
   const toolToSidebar = (tool: ActiveTool): SidebarTool | null => {
@@ -42,6 +52,19 @@ export default function Home() {
     setActiveTool(sidebarToTool(tool));
   };
 
+  const handleToolCardClick = (tool: ActiveTool) => {
+    if (!isAuthenticated) {
+      return;
+    }
+    setActiveTool(tool);
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated && activeTool) {
+      setActiveTool(null);
+    }
+  }, [activeTool, isAuthenticated]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex flex-col">
       {/* Tools Sidebar - Only shown when a tool is active */}
@@ -60,7 +83,41 @@ export default function Home() {
               <h1 className="text-2xl sm:text-3xl font-bold">{t('header.title')}</h1>
               <p className="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">{t('header.subtitle')}</p>
             </div>
-            <LanguageSwitcher />
+            <div className="flex flex-col items-start sm:items-end gap-2">
+              <LanguageSwitcher />
+              <div className="flex items-center gap-2">
+                {authLoading ? (
+                  <span className="text-sm text-blue-100">Checking login...</span>
+                ) : isAuthenticated ? (
+                  <>
+                    <span className="text-sm text-blue-100 hidden sm:inline">
+                      {user?.name || user?.email}
+                    </span>
+                    <a
+                      href={logoutHref}
+                      className="inline-flex items-center rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+                    >
+                      Log out
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a
+                      href={signUpHref}
+                      className="inline-flex items-center rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+                    >
+                      Sign up
+                    </a>
+                    <a
+                      href={loginHref}
+                      className="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-blue-900 hover:bg-blue-50 transition-colors"
+                    >
+                      Log in
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -76,6 +133,14 @@ export default function Home() {
               <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto px-4">
                 {t('hero.description')}
               </p>
+              {!authLoading && !isAuthenticated && (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900">
+                  <span>Sign in to use legal tools and API endpoints.</span>
+                  <a href={loginHref} className="font-semibold underline underline-offset-2">
+                    Log in
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Specialized Use Cases Section */}
@@ -151,8 +216,12 @@ export default function Home() {
             <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 max-w-5xl mx-auto">
               {/* Document Analyzer */}
               <div
-                onClick={() => setActiveTool('analyze')}
-                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 border-2 border-transparent hover:border-blue-500"
+                onClick={() => handleToolCardClick('analyze')}
+                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
+                  isAuthenticated
+                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-500'
+                    : 'cursor-not-allowed opacity-60'
+                }`}
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-blue-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -184,8 +253,12 @@ export default function Home() {
 
               {/* Legal Researcher */}
               <div
-                onClick={() => setActiveTool('research')}
-                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 border-2 border-transparent hover:border-green-500"
+                onClick={() => handleToolCardClick('research')}
+                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
+                  isAuthenticated
+                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-green-500'
+                    : 'cursor-not-allowed opacity-60'
+                }`}
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -217,8 +290,12 @@ export default function Home() {
 
               {/* Document Drafter */}
               <div
-                onClick={() => setActiveTool('draft')}
-                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 border-2 border-transparent hover:border-purple-500"
+                onClick={() => handleToolCardClick('draft')}
+                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
+                  isAuthenticated
+                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-500'
+                    : 'cursor-not-allowed opacity-60'
+                }`}
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-purple-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -250,8 +327,12 @@ export default function Home() {
 
               {/* Document Reviewer */}
               <div
-                onClick={() => setActiveTool('review')}
-                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 border-2 border-transparent hover:border-orange-500"
+                onClick={() => handleToolCardClick('review')}
+                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
+                  isAuthenticated
+                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-orange-500'
+                    : 'cursor-not-allowed opacity-60'
+                }`}
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-orange-100 p-2 sm:p-3 rounded-lg flex-shrink-0">

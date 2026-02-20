@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
 import { sanitizeInput } from '@/lib/utils';
+import { ensureAuthenticated } from '@/lib/require-auth';
 import type { DocumentReviewRequest, DocumentReviewResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
+    const authError = await ensureAuthenticated();
+    if (authError) {
+      return authError;
+    }
+
     const body: DocumentReviewRequest = await request.json();
     const {
       content,
