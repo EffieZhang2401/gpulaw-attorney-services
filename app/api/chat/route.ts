@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI } from '@/lib/openai';
 import { sanitizeInput } from '@/lib/utils';
-import { ensureAuthenticated } from '@/lib/require-auth';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -10,11 +9,6 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const authError = await ensureAuthenticated();
-    if (authError) {
-      return authError;
-    }
-
     const body = await request.json();
     const {
       messages = [],

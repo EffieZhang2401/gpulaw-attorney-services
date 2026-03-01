@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { useTranslations, useLocale } from 'next-intl';
 import DocumentAnalyzer from '@/components/DocumentAnalyzer';
@@ -53,17 +53,8 @@ export default function Home() {
   };
 
   const handleToolCardClick = (tool: ActiveTool) => {
-    if (!isAuthenticated) {
-      return;
-    }
     setActiveTool(tool);
   };
-
-  useEffect(() => {
-    if (!isAuthenticated && activeTool) {
-      setActiveTool(null);
-    }
-  }, [activeTool, isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex flex-col">
@@ -133,14 +124,6 @@ export default function Home() {
               <p className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto px-4">
                 {t('hero.description')}
               </p>
-              {!authLoading && !isAuthenticated && (
-                <div className="mt-4 inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900">
-                  <span>Sign in to use legal tools and API endpoints.</span>
-                  <a href={loginHref} className="font-semibold underline underline-offset-2">
-                    Log in
-                  </a>
-                </div>
-              )}
             </div>
 
             {/* Specialized Use Cases Section */}
@@ -203,6 +186,7 @@ export default function Home() {
                   </div>
                 </div>
               </a>
+
             </div>
 
             {/* Core Tools Section */}
@@ -217,11 +201,7 @@ export default function Home() {
               {/* Document Analyzer */}
               <div
                 onClick={() => handleToolCardClick('analyze')}
-                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
-                  isAuthenticated
-                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-500'
-                    : 'cursor-not-allowed opacity-60'
-                }`}
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-blue-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -254,11 +234,7 @@ export default function Home() {
               {/* Legal Researcher */}
               <div
                 onClick={() => handleToolCardClick('research')}
-                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
-                  isAuthenticated
-                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-green-500'
-                    : 'cursor-not-allowed opacity-60'
-                }`}
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-green-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -291,11 +267,7 @@ export default function Home() {
               {/* Document Drafter */}
               <div
                 onClick={() => handleToolCardClick('draft')}
-                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
-                  isAuthenticated
-                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-500'
-                    : 'cursor-not-allowed opacity-60'
-                }`}
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-purple-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -328,11 +300,7 @@ export default function Home() {
               {/* Document Reviewer */}
               <div
                 onClick={() => handleToolCardClick('review')}
-                className={`bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent ${
-                  isAuthenticated
-                    ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-orange-500'
-                    : 'cursor-not-allowed opacity-60'
-                }`}
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-orange-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="bg-orange-100 p-2 sm:p-3 rounded-lg flex-shrink-0">

@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
-import { ensureAuthenticated } from '@/lib/require-auth';
 import type { LegalResearchRequest, LegalResearchResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const authError = await ensureAuthenticated();
-    if (authError) {
-      return authError;
-    }
-
     const body: LegalResearchRequest = await request.json();
     const {
       query,
