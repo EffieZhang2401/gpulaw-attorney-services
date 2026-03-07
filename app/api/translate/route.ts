@@ -12,7 +12,11 @@ export async function POST(request: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const { data: body, error: parseError } = await parseBody(request);
+    const { data: body, error: parseError } = await parseBody<{
+      text?: string;
+      targetLanguage?: string;
+      sourceLanguage?: string;
+    }>(request);
     if (parseError) return parseError;
 
     const {

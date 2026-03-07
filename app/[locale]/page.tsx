@@ -383,9 +383,15 @@ export default function Home() {
             <p className="text-gray-400 mb-2 text-sm sm:text-base">
               {t('footer.copyright')}
             </p>
-            <p className="text-xs sm:text-sm text-gray-500 px-4">
+            <p className="text-xs sm:text-sm text-gray-500 px-4 mb-2">
               <strong>{t('footer.disclaimer')}</strong> {t('footer.disclaimerText')}
             </p>
+            <a
+              href={`/${locale}/privacy`}
+              className="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            >
+              {t('consent.learnMore')}
+            </a>
           </div>
         </div>
       </footer>

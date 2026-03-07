@@ -126,8 +126,8 @@ Be thorough and precise. Legal documents require perfection.`;
       if (jsonMatch) {
         parsedReview = JSON.parse(jsonMatch[0]);
       }
-    } catch (parseError) {
-      console.error('Failed to parse review response:', parseError);
+    } catch {
+      // AI response wasn't valid JSON; fall through to default structure
     }
 
     // If parsing failed, create a basic structure
@@ -168,8 +168,8 @@ Provide the complete revised document with all issues addressed. Maintain the or
             maxTokens: 4000,
           }
         );
-      } catch (error) {
-        console.error('Failed to generate revised document:', error);
+      } catch {
+        // Revision generation failed; continue without it
       }
     }
 

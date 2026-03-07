@@ -17,7 +17,11 @@ export async function POST(request: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const { data: body, error: parseError } = await parseBody(request);
+    const { data: body, error: parseError } = await parseBody<{
+      messages?: ChatMessage[];
+      context?: string;
+      toolType?: string;
+    }>(request);
     if (parseError) return parseError;
 
     const {

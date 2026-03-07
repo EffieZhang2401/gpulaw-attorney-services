@@ -3,6 +3,7 @@ import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Analytics } from '@vercel/analytics/react';
 import { locales } from '@/i18n/request';
+import CookieConsent from '@/components/CookieConsent';
 import "./globals.css";
 
 type Props = {
@@ -44,6 +45,7 @@ export default async function RootLayout({
       <body className="antialiased bg-gray-50">
         <NextIntlClientProvider messages={messages}>
           {children}
+          <CookieConsent />
         </NextIntlClientProvider>
         <Analytics />
       </body>

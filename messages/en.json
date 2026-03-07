@@ -261,5 +261,58 @@
         "showBoth": "Show Both (Side-by-Side)"
       }
     }
+  },
+  "consent": {
+    "title": "Cookie & Privacy Notice",
+    "message": "We use essential cookies for authentication and security. Your data is processed in accordance with our Privacy Policy. By continuing to use this service, you consent to our data practices.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "learnMore": "Privacy Policy"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: March 2026",
+    "intro": "GPULaw Attorney Services (\"we\", \"us\", \"our\") is committed to protecting your privacy and complying with applicable data protection regulations including GDPR, CCPA, and HIPAA where applicable.",
+    "dataCollection": {
+      "title": "Data We Collect",
+      "items": [
+        "Account information (name, email) via Auth0 authentication",
+        "Legal documents and text you submit for analysis",
+        "Chat conversation history",
+        "Usage data and analytics"
+      ]
+    },
+    "dataUse": {
+      "title": "How We Use Your Data",
+      "items": [
+        "To provide AI-powered legal analysis services",
+        "To authenticate and secure your account",
+        "To improve our services",
+        "To comply with legal obligations"
+      ]
+    },
+    "thirdParty": {
+      "title": "Third-Party Data Processing",
+      "description": "Documents and text submitted for analysis are processed by OpenAI. We do not share your personal information with third parties for marketing purposes."
+    },
+    "retention": {
+      "title": "Data Retention",
+      "description": "We retain your data only as long as necessary to provide our services. Chat messages are automatically purged after 90 days. You may request deletion of your data at any time."
+    },
+    "rights": {
+      "title": "Your Rights",
+      "items": [
+        "Right to access your personal data",
+        "Right to rectification of inaccurate data",
+        "Right to erasure (right to be forgotten)",
+        "Right to data portability",
+        "Right to object to processing",
+        "Right to withdraw consent"
+      ]
+    },
+    "contact": {
+      "title": "Contact Us",
+      "description": "For privacy-related inquiries or to exercise your rights, contact us at privacy@gpulaw.com."
+    }
   }
 }
