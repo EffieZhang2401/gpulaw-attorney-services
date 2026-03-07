@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
@@ -41,6 +41,10 @@ export default function ChatPanel({ context, toolType }: Props) {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const storageKey = user?.sub ? `gpulaw-chat-history:${toolType}:${user.sub}` : null;
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  const currentSessionIdRef = useRef(currentSessionId);
+  currentSessionIdRef.current = currentSessionId;
 
   const toStoredMessage = (message: Message): StoredMessage => ({
     role: message.role,
@@ -54,20 +58,20 @@ export default function ChatPanel({ context, toolType }: Props) {
     timestamp: new Date(message.timestamp),
   });
 
-  const persistSession = (nextMessages: Message[]) => {
+  const persistSession = useCallback((nextMessages: Message[]) => {
     if (!storageKey || nextMessages.length === 0) {
       return;
     }
 
-    const sessionId = currentSessionId || `${Date.now()}`;
-    if (!currentSessionId) {
+    const sessionId = currentSessionIdRef.current || `${Date.now()}`;
+    if (!currentSessionIdRef.current) {
       setCurrentSessionId(sessionId);
     }
 
     const firstUserMessage = nextMessages.find((message) => message.role === 'user');
     const title = firstUserMessage
-      ? firstUserMessage.content.trim().slice(0, 60) || 'New conversation'
-      : 'New conversation';
+      ? firstUserMessage.content.trim().slice(0, 60) || t('newConversation')
+      : t('newConversation');
 
     const nextSession: ChatSession = {
       id: sessionId,
@@ -76,10 +80,10 @@ export default function ChatPanel({ context, toolType }: Props) {
       messages: nextMessages.map(toStoredMessage),
     };
 
-    const updatedSessions = [nextSession, ...sessions.filter((session) => session.id !== sessionId)].slice(0, 20);
+    const updatedSessions = [nextSession, ...sessionsRef.current.filter((session) => session.id !== sessionId)].slice(0, 20);
     setSessions(updatedSessions);
     localStorage.setItem(storageKey, JSON.stringify(updatedSessions));
-  };
+  }, [storageKey, t]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -239,9 +243,9 @@ export default function ChatPanel({ context, toolType }: Props) {
                 <button
                   onClick={startNewChat}
                   className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors text-xs font-semibold"
-                  title="Start new chat"
+                  title={t('newChat')}
                 >
-                  New chat
+                  {t('newChat')}
                 </button>
               )}
               {messages.length > 0 && (
@@ -260,7 +264,7 @@ export default function ChatPanel({ context, toolType }: Props) {
 
           {user && sessions.length > 0 && (
             <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
-              <p className="text-xs font-semibold text-indigo-900 mb-2">History</p>
+              <p className="text-xs font-semibold text-indigo-900 mb-2">{t('history')}</p>
               <div className="max-h-28 overflow-y-auto space-y-1">
                 {sessions.map((session) => (
                   <button
