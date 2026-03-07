@@ -7,6 +7,12 @@
     "title": "GPULaw Attorney Services",
     "subtitle": "AI-Powered Legal Tools for Precision Work"
   },
+  "auth": {
+    "checkingLogin": "Checking login...",
+    "login": "Log in",
+    "signup": "Sign up",
+    "logout": "Log out"
+  },
   "hero": {
     "title": "Professional Legal AI Tools",
     "description": "Advanced AI-powered tools designed specifically for attorneys to analyze documents, conduct research, draft legal documents, and review work with unprecedented precision."
@@ -99,6 +105,9 @@
       "openChat": "Open AI Chat",
       "closeChat": "Close Chat",
       "clearChat": "Clear Chat",
+      "newChat": "New chat",
+      "history": "History",
+      "newConversation": "New conversation",
       "subtitle": "24/7 Legal Assistant",
       "welcomeTitle": "Welcome to AI Legal Assistant",
       "welcomeMessage": "Ask me anything about your document or legal questions!",

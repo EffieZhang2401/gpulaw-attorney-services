@@ -7,6 +7,12 @@
     "title": "GPULaw律师服务",
     "subtitle": "AI驱动的精准法律工具"
   },
+  "auth": {
+    "checkingLogin": "正在检查登录...",
+    "login": "登录",
+    "signup": "注册",
+    "logout": "退出"
+  },
   "hero": {
     "title": "专业法律AI工具",
     "description": "专为律师设计的先进AI工具，用于分析文档、进行研究、起草法律文件，并以前所未有的精准度审查工作。"
@@ -99,6 +105,9 @@
       "openChat": "打开AI聊天",
       "closeChat": "关闭聊天",
       "clearChat": "清空聊天",
+      "newChat": "新对话",
+      "history": "历史记录",
+      "newConversation": "新对话",
       "subtitle": "24/7 法律助手",
       "welcomeTitle": "欢迎使用AI法律助手",
       "welcomeMessage": "询问我关于您的文档或法律问题的任何问题！",

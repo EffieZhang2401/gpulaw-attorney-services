@@ -19,10 +19,7 @@ export default function Home() {
   const t = useTranslations();
   const locale = useLocale();
   const isAuthenticated = Boolean(user);
-  const appBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-  const returnTo = encodeURIComponent(`${appBaseUrl.replace(/\/$/, '')}/${locale}`);
+  const returnTo = encodeURIComponent(`/${locale}`);
   const loginHref = `/auth/login?returnTo=${returnTo}`;
   const signUpHref = `/auth/login?screen_hint=signup&returnTo=${returnTo}`;
   const logoutHref = `/auth/logout?returnTo=${returnTo}`;
@@ -52,10 +49,6 @@ export default function Home() {
     setActiveTool(sidebarToTool(tool));
   };
 
-  const handleToolCardClick = (tool: ActiveTool) => {
-    setActiveTool(tool);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex flex-col">
       {/* Tools Sidebar - Only shown when a tool is active */}
@@ -78,7 +71,7 @@ export default function Home() {
               <LanguageSwitcher />
               <div className="flex items-center gap-2">
                 {authLoading ? (
-                  <span className="text-sm text-blue-100">Checking login...</span>
+                  <span className="text-sm text-blue-100">{t('auth.checkingLogin')}</span>
                 ) : isAuthenticated ? (
                   <>
                     <span className="text-sm text-blue-100 hidden sm:inline">
@@ -88,7 +81,7 @@ export default function Home() {
                       href={logoutHref}
                       className="inline-flex items-center rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
                     >
-                      Log out
+                      {t('auth.logout')}
                     </a>
                   </>
                 ) : (
@@ -97,13 +90,13 @@ export default function Home() {
                       href={signUpHref}
                       className="inline-flex items-center rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
                     >
-                      Sign up
+                      {t('auth.signup')}
                     </a>
                     <a
                       href={loginHref}
                       className="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-blue-900 hover:bg-blue-50 transition-colors"
                     >
-                      Log in
+                      {t('auth.login')}
                     </a>
                   </>
                 )}
@@ -200,7 +193,7 @@ export default function Home() {
             <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 max-w-5xl mx-auto">
               {/* Document Analyzer */}
               <div
-                onClick={() => handleToolCardClick('analyze')}
+                onClick={() => setActiveTool('analyze')}
                 className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
@@ -233,7 +226,7 @@ export default function Home() {
 
               {/* Legal Researcher */}
               <div
-                onClick={() => handleToolCardClick('research')}
+                onClick={() => setActiveTool('research')}
                 className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-green-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
@@ -266,7 +259,7 @@ export default function Home() {
 
               {/* Document Drafter */}
               <div
-                onClick={() => handleToolCardClick('draft')}
+                onClick={() => setActiveTool('draft')}
                 className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
@@ -299,7 +292,7 @@ export default function Home() {
 
               {/* Document Reviewer */}
               <div
-                onClick={() => handleToolCardClick('review')}
+                onClick={() => setActiveTool('review')}
                 className="bg-white rounded-lg shadow-lg p-4 sm:p-8 transition-all border-2 border-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-orange-500"
               >
                 <div className="flex items-start space-x-3 sm:space-x-4">
