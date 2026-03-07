@@ -73,7 +73,7 @@ export default function ToolsSidebar({ currentTool, onSelectTool }: Props) {
   };
 
   return (
-    <div className="hidden lg:block w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 overflow-y-auto">
+    <div className="hidden lg:block w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 overflow-y-auto z-40">
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-2">
           {t('coreTools.title')}

@@ -61,12 +61,14 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-4 sm:py-6">
+      <header className={`bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-lg relative z-30 ${activeTool ? 'lg:pl-64' : ''}`}>
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold">{t('header.title')}</h1>
-              <p className="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">{t('header.subtitle')}</p>
+            <div className="flex-1 min-w-0">
+              <h1 className={`font-bold truncate ${activeTool ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'}`}>{t('header.title')}</h1>
+              {!activeTool && (
+                <p className="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">{t('header.subtitle')}</p>
+              )}
             </div>
             <div className="flex flex-col items-start sm:items-end gap-2">
               <LanguageSwitcher />
@@ -377,7 +379,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-auto">
+      <footer className={`bg-gray-900 text-white mt-auto ${activeTool ? 'lg:pl-64' : ''}`}>
         <div className="container mx-auto px-4 py-6 sm:py-8">
           <div className="text-center">
             <p className="text-gray-400 mb-2 text-sm sm:text-base">

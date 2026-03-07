@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 
 type AuditAction =
@@ -38,7 +39,7 @@ export function auditLog(entry: AuditEntry) {
       userId: entry.userId,
       ip: entry.ip,
       userAgent: entry.userAgent,
-      metadata: entry.metadata ?? undefined,
+      metadata: (entry.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
     },
   }).catch((err: unknown) => {
     console.error('[AuditLog] Failed to persist:', err instanceof Error ? err.message : 'unknown');
