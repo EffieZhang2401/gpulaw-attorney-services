@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth0, isAuth0Configured } from './auth0';
+import { prisma } from './prisma';
 
 /**
  * Verify the user is authenticated via Auth0 session.
@@ -15,7 +16,11 @@ export async function requireApiAuth(request: NextRequest) {
     if (!session?.user) {
       return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
     }
-    return { user: session.user };
+    return {
+      user: session.user,
+      ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    };
   } catch {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
@@ -39,7 +44,6 @@ export function safeErrorResponse(error: unknown, fallbackMessage: string) {
     }
   }
 
-  // Never expose internal error messages to clients
   console.error(`[API Error] ${fallbackMessage}:`, error instanceof Error ? error.message : 'Unknown error');
 
   return NextResponse.json(
@@ -48,34 +52,61 @@ export function safeErrorResponse(error: unknown, fallbackMessage: string) {
   );
 }
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// ============================================
+// Rate Limiting (DB-backed via Neon PostgreSQL)
+// ============================================
+
+// In-memory fallback when DB is unavailable
+const memoryFallback = new Map<string, { count: number; resetAt: number }>();
 
 /**
- * Simple in-memory rate limiter. For production, use Redis-backed solution.
- * Returns null if allowed, or an error response if rate limited.
+ * Rate limiter backed by Neon PostgreSQL.
+ * Falls back to in-memory if DB is unreachable.
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   identifier: string,
   maxRequests: number = 20,
   windowMs: number = 60_000
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const now = Date.now();
-  const entry = rateLimitMap.get(identifier);
+  const windowStart = new Date(now - windowMs);
 
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(identifier, { count: 1, resetAt: now + windowMs });
+  try {
+    // Count recent requests from this user using raw SQL for performance
+    const result = await prisma.auditLog.count({
+      where: {
+        userId: identifier,
+        timestamp: { gte: windowStart },
+      },
+    });
+
+    if (result >= maxRequests) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(windowMs / 1000)) } }
+      );
+    }
+
+    return null;
+  } catch {
+    // DB unavailable — fall back to in-memory
+    const entry = memoryFallback.get(identifier);
+
+    if (!entry || now > entry.resetAt) {
+      memoryFallback.set(identifier, { count: 1, resetAt: now + windowMs });
+      return null;
+    }
+
+    entry.count++;
+    if (entry.count > maxRequests) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((entry.resetAt - now) / 1000)) } }
+      );
+    }
+
     return null;
   }
-
-  entry.count++;
-  if (entry.count > maxRequests) {
-    return NextResponse.json(
-      { success: false, error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((entry.resetAt - now) / 1000)) } }
-    );
-  }
-
-  return null;
 }
 
 /** Max request body size in bytes (500KB) */

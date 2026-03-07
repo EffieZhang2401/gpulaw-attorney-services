@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request);
   if (auth.error) return auth.error;
 
-  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  const rateLimited = await checkRateLimit(auth.user!.sub, 10, 60_000);
   if (rateLimited) return rateLimited;
 
   try {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       specificConcerns = [],
     } = body!;
 
-    auditLog({ action: 'api.review_document', userId: auth.user!.sub, metadata: { documentType, reviewType } });
+    auditLog({ action: 'api.review_document', userId: auth.user!.sub, ip: auth.ip, userAgent: auth.userAgent, metadata: { documentType, reviewType } });
 
     if (!content) {
       return NextResponse.json(

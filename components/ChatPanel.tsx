@@ -5,6 +5,7 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { secureSet, secureGet } from '@/lib/secure-storage';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -82,8 +83,10 @@ export default function ChatPanel({ context, toolType }: Props) {
 
     const updatedSessions = [nextSession, ...sessionsRef.current.filter((session) => session.id !== sessionId)].slice(0, 20);
     setSessions(updatedSessions);
-    localStorage.setItem(storageKey, JSON.stringify(updatedSessions));
-  }, [storageKey, t]);
+    if (user?.sub) {
+      secureSet(storageKey, updatedSessions, user.sub);
+    }
+  }, [storageKey, t, user?.sub]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -94,26 +97,16 @@ export default function ChatPanel({ context, toolType }: Props) {
   }, [messages]);
 
   useEffect(() => {
-    if (!storageKey) {
+    if (!storageKey || !user?.sub) {
       setSessions([]);
       setCurrentSessionId(null);
       return;
     }
 
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) {
-      setSessions([]);
-      setCurrentSessionId(null);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as ChatSession[];
+    secureGet<ChatSession[]>(storageKey, user.sub).then((parsed) => {
       setSessions(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setSessions([]);
-    }
-  }, [storageKey]);
+    });
+  }, [storageKey, user?.sub]);
 
   const startNewChat = () => {
     setMessages([]);

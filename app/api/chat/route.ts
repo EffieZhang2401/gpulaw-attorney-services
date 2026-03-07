@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request);
   if (auth.error) return auth.error;
 
-  const rateLimited = checkRateLimit(auth.user!.sub, 30, 60_000);
+  const rateLimited = await checkRateLimit(auth.user!.sub, 30, 60_000);
   if (rateLimited) return rateLimited;
 
   try {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       toolType = 'general',
     } = body!;
 
-    auditLog({ action: 'api.chat', userId: auth.user!.sub, metadata: { toolType } });
+    auditLog({ action: 'api.chat', userId: auth.user!.sub, ip: auth.ip, userAgent: auth.userAgent, metadata: { toolType } });
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(

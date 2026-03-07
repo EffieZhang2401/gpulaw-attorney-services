@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request);
   if (auth.error) return auth.error;
 
-  const rateLimited = checkRateLimit(auth.user!.sub, 20, 60_000);
+  const rateLimited = await checkRateLimit(auth.user!.sub, 20, 60_000);
   if (rateLimited) return rateLimited;
 
   try {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       sourceLanguage = 'en',
     } = body!;
 
-    auditLog({ action: 'api.translate', userId: auth.user!.sub, metadata: { targetLanguage } });
+    auditLog({ action: 'api.translate', userId: auth.user!.sub, ip: auth.ip, userAgent: auth.userAgent, metadata: { targetLanguage } });
 
     if (!text) {
       return NextResponse.json(

@@ -1,3 +1,5 @@
+import { prisma } from './prisma';
+
 type AuditAction =
   | 'api.chat'
   | 'api.analyze_document'
@@ -11,23 +13,34 @@ type AuditAction =
   | 'data.export';
 
 interface AuditEntry {
-  timestamp: string;
   action: AuditAction;
   userId: string;
   ip?: string;
+  userAgent?: string;
   metadata?: Record<string, unknown>;
 }
 
 /**
  * Structured audit logger for compliance (SOC2, HIPAA, GDPR).
- * In production, send to a centralized logging service (e.g., Datadog, Splunk).
+ * Persists to Neon PostgreSQL via Prisma and also outputs structured JSON
+ * to stdout for Vercel runtime logs.
  */
-export function auditLog(entry: Omit<AuditEntry, 'timestamp'>) {
-  const log: AuditEntry = {
-    ...entry,
-    timestamp: new Date().toISOString(),
-  };
+export function auditLog(entry: AuditEntry) {
+  const timestamp = new Date().toISOString();
 
-  // Structured JSON log — easily ingested by log aggregators
-  console.log(JSON.stringify({ level: 'audit', ...log }));
+  // Always log to stdout (available in Vercel runtime logs)
+  console.log(JSON.stringify({ level: 'audit', timestamp, ...entry }));
+
+  // Persist to database (fire-and-forget, don't block the request)
+  prisma.auditLog.create({
+    data: {
+      action: entry.action,
+      userId: entry.userId,
+      ip: entry.ip,
+      userAgent: entry.userAgent,
+      metadata: entry.metadata ?? undefined,
+    },
+  }).catch((err: unknown) => {
+    console.error('[AuditLog] Failed to persist:', err instanceof Error ? err.message : 'unknown');
+  });
 }

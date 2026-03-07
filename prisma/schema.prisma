@@ -604,3 +604,21 @@ model LawyerAvailability {
   @@index([lawyerId])
   @@index([dayOfWeek])
 }
+
+// ============================================
+// Audit Logs (SOC2, HIPAA, GDPR compliance)
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  action    String   // e.g. api.chat, auth.login, data.access
+  userId    String
+  ip        String?
+  userAgent String?
+  metadata  Json?    // Additional context (toolType, documentType, etc.)
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+}

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(request);
   if (auth.error) return auth.error;
 
-  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  const rateLimited = await checkRateLimit(auth.user!.sub, 10, 60_000);
   if (rateLimited) return rateLimited;
 
   try {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       includeAnalysis = true,
     } = body!;
 
-    auditLog({ action: 'api.research', userId: auth.user!.sub, metadata: { jurisdiction, searchType } });
+    auditLog({ action: 'api.research', userId: auth.user!.sub, ip: auth.ip, userAgent: auth.userAgent, metadata: { jurisdiction, searchType } });
 
     if (!query) {
       return NextResponse.json(
