@@ -101,12 +101,11 @@ export async function callOpenAI(
     });
 
     return completion.choices[0]?.message?.content || '';
-  } catch (error: any) {
-    console.error('OpenAI API error:', error);
+  } catch (error: unknown) {
+    const status = (error as { status?: number })?.status;
+    console.error('[OpenAI] API call failed:', status || 'unknown');
     throw new Error(
-      error?.status === 401
-        ? 'Invalid API key'
-        : error?.status === 429
+      status === 429
         ? 'Rate limit exceeded'
         : 'Failed to process request'
     );

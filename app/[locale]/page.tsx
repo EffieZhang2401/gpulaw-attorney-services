@@ -19,10 +19,11 @@ export default function Home() {
   const t = useTranslations();
   const locale = useLocale();
   const isAuthenticated = Boolean(user);
-  const returnTo = encodeURIComponent(`/${locale}`);
+  const returnTo = `/${locale}`;
   const loginHref = `/auth/login?returnTo=${returnTo}`;
   const signUpHref = `/auth/login?screen_hint=signup&returnTo=${returnTo}`;
-  const logoutHref = `/auth/logout?returnTo=${returnTo}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const logoutHref = `/auth/logout?returnTo=${encodeURIComponent(`${appUrl}/${locale}`)}`;
 
   // Convert between activeTool and sidebarTool naming conventions
   const toolToSidebar = (tool: ActiveTool): SidebarTool | null => {

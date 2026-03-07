@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
 import { sanitizeInput, extractDates, extractParties, extractCitations, analyzeDocumentStructure } from '@/lib/utils';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 import type { DocumentAnalysisRequest, DocumentAnalysisResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body: DocumentAnalysisRequest = await request.json();
-    const { content, documentType = 'other', analysisType = 'full', context } = body;
+    const { data: body, error: parseError } = await parseBody<DocumentAnalysisRequest>(request);
+    if (parseError) return parseError;
+
+    const { content, documentType = 'other', analysisType = 'full', context } = body!;
+
+    auditLog({ action: 'api.analyze_document', userId: auth.user!.sub, metadata: { documentType, analysisType } });
 
     if (!content) {
       return NextResponse.json(
@@ -137,16 +149,7 @@ Format your response in clear sections using markdown.`;
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Document analysis error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred while analyzing the document',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred while analyzing the document');
   }
 }

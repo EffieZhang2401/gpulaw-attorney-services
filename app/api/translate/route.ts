@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI } from '@/lib/openai';
 import { sanitizeInput } from '@/lib/utils';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 20, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body = await request.json();
+    const { data: body, error: parseError } = await parseBody(request);
+    if (parseError) return parseError;
+
     const {
       text,
       targetLanguage = 'zh',
       sourceLanguage = 'en',
-    } = body;
+    } = body!;
+
+    auditLog({ action: 'api.translate', userId: auth.user!.sub, metadata: { targetLanguage } });
 
     if (!text) {
       return NextResponse.json(
@@ -70,16 +82,7 @@ ${sanitizedText}
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Translation error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred during translation',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred during translation');
   }
 }

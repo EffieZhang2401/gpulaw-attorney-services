@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 import type { LegalResearchRequest, LegalResearchResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body: LegalResearchRequest = await request.json();
+    const { data: body, error: parseError } = await parseBody<LegalResearchRequest>(request);
+    if (parseError) return parseError;
+
     const {
       query,
       jurisdiction = 'United States',
       practiceArea,
       searchType = 'all',
       includeAnalysis = true,
-    } = body;
+    } = body!;
+
+    auditLog({ action: 'api.research', userId: auth.user!.sub, metadata: { jurisdiction, searchType } });
 
     if (!query) {
       return NextResponse.json(
@@ -130,16 +142,7 @@ Return ONLY a JSON array of strings. Example: ["Query 1", "Query 2", "Query 3", 
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Legal research error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred while conducting research',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred while conducting research');
   }
 }

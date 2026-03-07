@@ -121,10 +121,18 @@ export function analyzeDocumentStructure(text: string) {
 }
 
 export function sanitizeInput(input: string): string {
-  // Remove potentially harmful content while preserving legal text
   return input
-    .replace(/<script[^>]*>.*?<\/script>/gi, '')
-    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[^>]*>[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed[^>]*\/?>/gi, '')
+    .replace(/<form[^>]*>[\s\S]*?<\/form>/gi, '')
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\bon\w+\s*=\s*\S+/gi, '')
+    .replace(/href\s*=\s*["']?\s*javascript:/gi, 'href="')
+    .replace(/src\s*=\s*["']?\s*javascript:/gi, 'src="')
+    .replace(/src\s*=\s*["']?\s*data:text\/html/gi, 'src="')
+    .replace(/expression\s*\(/gi, '')
     .trim();
 }
 

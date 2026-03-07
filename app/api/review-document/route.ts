@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
 import { sanitizeInput } from '@/lib/utils';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 import type { DocumentReviewRequest, DocumentReviewResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body: DocumentReviewRequest = await request.json();
+    const { data: body, error: parseError } = await parseBody<DocumentReviewRequest>(request);
+    if (parseError) return parseError;
+
     const {
       content,
       documentType = 'legal document',
       reviewType = 'comprehensive',
       jurisdiction,
       specificConcerns = [],
-    } = body;
+    } = body!;
+
+    auditLog({ action: 'api.review_document', userId: auth.user!.sub, metadata: { documentType, reviewType } });
 
     if (!content) {
       return NextResponse.json(
@@ -176,16 +188,7 @@ Provide the complete revised document with all issues addressed. Maintain the or
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Document review error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred while reviewing the document',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred while reviewing the document');
   }
 }

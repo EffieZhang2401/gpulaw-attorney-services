@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, PROMPTS } from '@/lib/openai';
 import { formatLegalDocument } from '@/lib/utils';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 import type { DocumentDraftRequest, DocumentDraftResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 10, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body: DocumentDraftRequest = await request.json();
+    const { data: body, error: parseError } = await parseBody<DocumentDraftRequest>(request);
+    if (parseError) return parseError;
+
     const {
       documentType,
       purpose,
@@ -15,7 +25,9 @@ export async function POST(request: NextRequest) {
       jurisdiction = 'United States',
       tone = 'formal',
       additionalInstructions,
-    } = body;
+    } = body!;
+
+    auditLog({ action: 'api.draft_document', userId: auth.user!.sub, metadata: { documentType } });
 
     if (!documentType || !purpose) {
       return NextResponse.json(
@@ -253,17 +265,8 @@ Return ONLY a JSON array of suggestion strings.`;
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Document drafting error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred while drafting the document',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred while drafting the document');
   }
 }
 

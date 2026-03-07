@@ -1,0 +1,606 @@
+// Legal Marketplace Platform - Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// User Management & Authentication
+// ============================================
+
+enum UserRole {
+  CLIENT          // Seeking legal help
+  LAWYER          // Individual lawyer
+  FIRM_ADMIN      // Firm administrator
+  PLATFORM_ADMIN  // Platform administrator
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  phone         String?
+  role          UserRole    @default(CLIENT)
+  status        UserStatus  @default(ACTIVE)
+  locale        String      @default("en") // en, zh-CN, zh-TW
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  clientProfile ClientProfile?
+  lawyerProfile LawyerProfile?
+  firmProfile   FirmProfile?
+
+  // Activity tracking
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lastLoginAt   DateTime?
+
+  // GDPR: data retention & right to deletion
+  deletedAt     DateTime?
+  dataRetentionConsent  Boolean  @default(false)
+  consentUpdatedAt      DateTime?
+
+  @@index([email])
+  @@index([role, status])
+  @@index([deletedAt])
+}
+
+// NextAuth.js models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// Legal Categories
+// ============================================
+
+enum LegalCategory {
+  FAMILY_LAW              // Divorce, custody, etc.
+  CONSUMER_DEBT           // Credit, bankruptcy
+  HOUSING_LANDLORD        // Evictions, rent, etc.
+  WILLS_ESTATES           // Wills, trusts, probate
+  IMMIGRATION             // Green cards, asylum, etc.
+  CRYPTO_COMPLIANCE       // Crypto regulations
+}
+
+model Category {
+  id          String        @id @default(cuid())
+  key         LegalCategory @unique
+  nameEn      String
+  nameZhCn    String
+  nameZhTw    String
+  descEn      String        @db.Text
+  descZhCn    String        @db.Text
+  descZhTw    String        @db.Text
+  icon        String?
+  order       Int           @default(0)
+  isActive    Boolean       @default(true)
+
+  // Relations
+  subcategories Subcategory[]
+  lawyers       LawyerCategory[]
+  consultations Consultation[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([key, isActive])
+}
+
+model Subcategory {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  nameEn      String
+  nameZhCn    String
+  nameZhTw    String
+  descEn      String?  @db.Text
+  descZhCn    String?  @db.Text
+  descZhTw    String?  @db.Text
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+// ============================================
+// Client Profiles
+// ============================================
+
+model ClientProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Personal info
+  firstName       String?
+  lastName        String?
+  dateOfBirth     DateTime?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String   @default("US")
+
+  // Preferences
+  preferredLocale String   @default("en")
+  timezone        String?
+
+  // Relations
+  consultations   Consultation[]
+  chatSessions    ChatSession[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// Lawyer Profiles
+// ============================================
+
+enum LawyerStatus {
+  PENDING_VERIFICATION  // Just signed up
+  VERIFIED              // Documents verified by admin
+  APPROVED              // Fully approved to accept clients
+  REJECTED              // Rejected by admin
+  SUSPENDED             // Temporarily suspended
+}
+
+model LawyerProfile {
+  id                String        @id @default(cuid())
+  userId            String        @unique
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional info
+  firstName         String
+  lastName          String
+  barNumber         String        @unique
+  barState          String        // CA, NY, etc.
+  barAdmissionDate  DateTime
+  lawSchool         String?
+  graduationYear    Int?
+  yearsExperience   Int           @default(0)
+
+  // Profile
+  bio               String?       @db.Text
+  bioZhCn           String?       @db.Text
+  bioZhTw           String?       @db.Text
+  profileImage      String?
+  hourlyRate        Decimal?      @db.Decimal(10, 2)
+  consultationFee   Decimal?      @db.Decimal(10, 2)
+
+  // Contact
+  officePhone       String?
+  mobilePhone       String?
+  officeAddress     String?
+  city              String?
+  state             String?
+  zipCode           String?
+  website           String?
+
+  // Status & verification
+  status            LawyerStatus  @default(PENDING_VERIFICATION)
+  verificationNotes String?       @db.Text
+  approvedAt        DateTime?
+  approvedBy        String?       // Admin user ID
+
+  // Firm association (optional)
+  firmId            String?
+  firm              FirmProfile?  @relation(fields: [firmId], references: [id], onDelete: SetNull)
+  isFirmAdmin       Boolean       @default(false)
+
+  // Relations
+  categories        LawyerCategory[]
+  languages         LawyerLanguage[]
+  consultations     Consultation[]
+  availability      LawyerAvailability[]
+  reviews           Review[]
+  documents         LawyerDocument[]
+
+  // Stats
+  totalConsultations Int         @default(0)
+  averageRating     Decimal?     @db.Decimal(3, 2)
+  responseTimeHours Int?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([barNumber])
+  @@index([firmId])
+}
+
+model LawyerCategory {
+  id         String         @id @default(cuid())
+  lawyerId   String
+  lawyer     LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  isPrimary  Boolean        @default(false)
+  order      Int            @default(0)
+
+  createdAt  DateTime       @default(now())
+
+  @@unique([lawyerId, categoryId])
+  @@index([lawyerId])
+  @@index([categoryId])
+}
+
+enum Language {
+  ENGLISH
+  MANDARIN
+  CANTONESE
+  SPANISH
+  FRENCH
+  KOREAN
+  VIETNAMESE
+  JAPANESE
+}
+
+model LawyerLanguage {
+  id         String         @id @default(cuid())
+  lawyerId   String
+  lawyer     LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  language   Language
+  isPrimary  Boolean        @default(false)
+
+  createdAt  DateTime       @default(now())
+
+  @@unique([lawyerId, language])
+  @@index([lawyerId])
+}
+
+enum DocumentType {
+  BAR_CERTIFICATE
+  MALPRACTICE_INSURANCE
+  ID_VERIFICATION
+  RESUME
+  OTHER
+}
+
+model LawyerDocument {
+  id              String         @id @default(cuid())
+  lawyerId        String
+  lawyer          LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  type            DocumentType
+  fileName        String
+  fileUrl         String         // S3 or file storage URL
+  fileSize        Int?
+  mimeType        String?
+
+  isVerified      Boolean        @default(false)
+  verifiedBy      String?        // Admin user ID
+  verifiedAt      DateTime?
+  verificationNotes String?      @db.Text
+
+  uploadedAt      DateTime       @default(now())
+
+  @@index([lawyerId])
+  @@index([type])
+}
+
+// ============================================
+// Firm Profiles
+// ============================================
+
+enum FirmStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model FirmProfile {
+  id                String        @id @default(cuid())
+  userId            String        @unique  // Firm admin user
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Firm details
+  firmName          String
+  firmNameZhCn      String?
+  firmNameZhTw      String?
+  taxId             String?       @unique
+  founded           DateTime?
+
+  // Profile
+  description       String?       @db.Text
+  descriptionZhCn   String?       @db.Text
+  descriptionZhTw   String?       @db.Text
+  logoUrl           String?
+  websiteUrl        String?
+
+  // Contact
+  mainPhone         String?
+  mainEmail         String?
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  country           String        @default("US")
+
+  // Status
+  status            FirmStatus    @default(PENDING_VERIFICATION)
+  verificationNotes String?       @db.Text
+  approvedAt        DateTime?
+  approvedBy        String?       // Admin user ID
+
+  // Relations
+  lawyers           LawyerProfile[]
+  consultations     Consultation[]
+
+  // Stats
+  totalLawyers      Int           @default(0)
+  averageRating     Decimal?      @db.Decimal(3, 2)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================
+// Consultations & Bookings
+// ============================================
+
+enum ConsultationType {
+  AI_CHAT           // AI guidance session
+  INITIAL_CONSULT   // First consultation with lawyer
+  FOLLOW_UP         // Follow-up consultation
+  CASE_REVIEW       // Case review session
+}
+
+enum ConsultationStatus {
+  AI_CHAT_ACTIVE    // Client using AI
+  PENDING_BOOKING   // Client wants to book lawyer
+  SCHEDULED         // Consultation scheduled
+  CONFIRMED         // Lawyer confirmed
+  IN_PROGRESS       // Currently happening
+  COMPLETED         // Finished
+  CANCELLED         // Cancelled by either party
+  NO_SHOW           // Client didn't show up
+}
+
+model Consultation {
+  id                String              @id @default(cuid())
+
+  // Client
+  clientId          String
+  client            ClientProfile       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Lawyer (optional - null during AI chat phase)
+  lawyerId          String?
+  lawyer            LawyerProfile?      @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
+
+  // Firm (optional)
+  firmId            String?
+  firm              FirmProfile?        @relation(fields: [firmId], references: [id], onDelete: SetNull)
+
+  // Category
+  categoryId        String
+  category          Category            @relation(fields: [categoryId], references: [id])
+
+  // Consultation details
+  type              ConsultationType    @default(AI_CHAT)
+  status            ConsultationStatus  @default(AI_CHAT_ACTIVE)
+
+  // Scheduling
+  scheduledAt       DateTime?
+  scheduledEndAt    DateTime?
+  actualStartAt     DateTime?
+  actualEndAt       DateTime?
+  timezone          String?
+
+  // Meeting details
+  meetingType       String?             // video, phone, in-person
+  meetingLink       String?
+  meetingNotes      String?             @db.Text
+
+  // AI chat summary (before lawyer connection)
+  aiChatSummary     String?             @db.Text
+  aiChatHistory     Json?               // Store conversation
+
+  // Client input
+  clientDescription String              @db.Text
+  urgencyLevel      String?             // low, medium, high, urgent
+  budget            Decimal?            @db.Decimal(10, 2)
+
+  // Lawyer notes
+  lawyerNotes       String?             @db.Text
+  internalNotes     String?             @db.Text
+
+  // Payment
+  fee               Decimal?            @db.Decimal(10, 2)
+  paymentStatus     String?             // pending, paid, refunded
+  paymentIntentId   String?             // Stripe payment intent
+
+  // Relations
+  chatSessions      ChatSession[]
+  reviews           Review[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([clientId])
+  @@index([lawyerId])
+  @@index([firmId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// ============================================
+// AI Chat System
+// ============================================
+
+model ChatSession {
+  id              String         @id @default(cuid())
+
+  clientId        String
+  client          ClientProfile  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  consultationId  String?
+  consultation    Consultation?  @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  category        LegalCategory?
+  locale          String         @default("en")
+
+  // Session data
+  messages        ChatMessage[]
+  summary         String?        @db.Text
+  extractedInfo   Json?          // Structured data from conversation
+
+  isActive        Boolean        @default(true)
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  endedAt         DateTime?
+
+  @@index([clientId])
+  @@index([consultationId])
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  sessionId     String
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role          String      // user, assistant, system
+  content       String      @db.Text
+  metadata      Json?       // Additional metadata
+
+  createdAt     DateTime    @default(now())
+  // Data retention: messages older than expiresAt should be purged
+  expiresAt     DateTime?
+
+  @@index([sessionId, createdAt])
+  @@index([expiresAt])
+}
+
+// ============================================
+// Reviews & Ratings
+// ============================================
+
+model Review {
+  id              String        @id @default(cuid())
+
+  consultationId  String        @unique
+  consultation    Consultation  @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  lawyerId        String
+  lawyer          LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  // Ratings (1-5)
+  overallRating   Int
+  professionalismRating Int?
+  communicationRating   Int?
+  valueRating     Int?
+
+  // Review
+  reviewText      String?       @db.Text
+  reviewTextZhCn  String?       @db.Text
+  reviewTextZhTw  String?       @db.Text
+
+  // Status
+  isPublished     Boolean       @default(true)
+  isVerified      Boolean       @default(false)
+
+  // Response
+  lawyerResponse  String?       @db.Text
+  respondedAt     DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([lawyerId])
+  @@index([overallRating])
+}
+
+// ============================================
+// Lawyer Availability
+// ============================================
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model LawyerAvailability {
+  id            String         @id @default(cuid())
+  lawyerId      String
+  lawyer        LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  dayOfWeek     DayOfWeek
+  startTime     String         // HH:mm format
+  endTime       String         // HH:mm format
+  timezone      String         @default("America/Los_Angeles")
+
+  isActive      Boolean        @default(true)
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([lawyerId])
+  @@index([dayOfWeek])
+}

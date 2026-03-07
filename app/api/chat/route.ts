@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI } from '@/lib/openai';
 import { sanitizeInput } from '@/lib/utils';
+import { requireApiAuth, safeErrorResponse, checkRateLimit, parseBody } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit-log';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -8,13 +10,23 @@ interface ChatMessage {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiAuth(request);
+  if (auth.error) return auth.error;
+
+  const rateLimited = checkRateLimit(auth.user!.sub, 30, 60_000);
+  if (rateLimited) return rateLimited;
+
   try {
-    const body = await request.json();
+    const { data: body, error: parseError } = await parseBody(request);
+    if (parseError) return parseError;
+
     const {
       messages = [],
       context,
       toolType = 'general',
-    } = body;
+    } = body!;
+
+    auditLog({ action: 'api.chat', userId: auth.user!.sub, metadata: { toolType } });
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
@@ -95,17 +107,8 @@ Please provide a helpful, accurate response based on the context and your legal 
       timestamp: new Date().toISOString(),
     });
 
-  } catch (error: any) {
-    console.error('Chat error:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'An error occurred during chat',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return safeErrorResponse(error, 'An error occurred during chat');
   }
 }
 
