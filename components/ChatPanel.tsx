@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useUser } from '@auth0/nextjs-auth0/client';
 import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,6 +12,19 @@ interface Message {
   timestamp: Date;
 }
 
+interface StoredMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: StoredMessage[];
+}
+
 interface Props {
   context?: string; // Optional context (document content, analysis results, etc.)
   toolType: 'analyzer' | 'researcher' | 'drafter' | 'reviewer';
@@ -18,11 +32,54 @@ interface Props {
 
 export default function ChatPanel({ context, toolType }: Props) {
   const t = useTranslations('tools.chat');
+  const { user } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const storageKey = user?.sub ? `gpulaw-chat-history:${toolType}:${user.sub}` : null;
+
+  const toStoredMessage = (message: Message): StoredMessage => ({
+    role: message.role,
+    content: message.content,
+    timestamp: message.timestamp.toISOString(),
+  });
+
+  const toRuntimeMessage = (message: StoredMessage): Message => ({
+    role: message.role,
+    content: message.content,
+    timestamp: new Date(message.timestamp),
+  });
+
+  const persistSession = (nextMessages: Message[]) => {
+    if (!storageKey || nextMessages.length === 0) {
+      return;
+    }
+
+    const sessionId = currentSessionId || `${Date.now()}`;
+    if (!currentSessionId) {
+      setCurrentSessionId(sessionId);
+    }
+
+    const firstUserMessage = nextMessages.find((message) => message.role === 'user');
+    const title = firstUserMessage
+      ? firstUserMessage.content.trim().slice(0, 60) || 'New conversation'
+      : 'New conversation';
+
+    const nextSession: ChatSession = {
+      id: sessionId,
+      title,
+      updatedAt: new Date().toISOString(),
+      messages: nextMessages.map(toStoredMessage),
+    };
+
+    const updatedSessions = [nextSession, ...sessions.filter((session) => session.id !== sessionId)].slice(0, 20);
+    setSessions(updatedSessions);
+    localStorage.setItem(storageKey, JSON.stringify(updatedSessions));
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,6 +88,38 @@ export default function ChatPanel({ context, toolType }: Props) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!storageKey) {
+      setSessions([]);
+      setCurrentSessionId(null);
+      return;
+    }
+
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) {
+      setSessions([]);
+      setCurrentSessionId(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as ChatSession[];
+      setSessions(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setSessions([]);
+    }
+  }, [storageKey]);
+
+  const startNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(null);
+  };
+
+  const openSession = (session: ChatSession) => {
+    setMessages(session.messages.map(toRuntimeMessage));
+    setCurrentSessionId(session.id);
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -41,7 +130,9 @@ export default function ChatPanel({ context, toolType }: Props) {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const messagesWithUser = [...messages, userMessage];
+    setMessages(messagesWithUser);
+    persistSession(messagesWithUser);
     setInput('');
     setLoading(true);
 
@@ -67,7 +158,9 @@ export default function ChatPanel({ context, toolType }: Props) {
           content: data.data.message,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        const finalMessages = [...messagesWithUser, assistantMessage];
+        setMessages(finalMessages);
+        persistSession(finalMessages);
       } else {
         throw new Error(data.error || 'Failed to get response');
       }
@@ -77,7 +170,9 @@ export default function ChatPanel({ context, toolType }: Props) {
         content: `${t('error')}: ${error.message}`,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      const finalMessages = [...messagesWithUser, errorMessage];
+      setMessages(finalMessages);
+      persistSession(finalMessages);
     } finally {
       setLoading(false);
     }
@@ -140,9 +235,18 @@ export default function ChatPanel({ context, toolType }: Props) {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              {user && (
+                <button
+                  onClick={startNewChat}
+                  className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors text-xs font-semibold"
+                  title="Start new chat"
+                >
+                  New chat
+                </button>
+              )}
               {messages.length > 0 && (
                 <button
-                  onClick={() => setMessages([])}
+                  onClick={startNewChat}
                   className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
                   title={t('clearChat')}
                 >
@@ -153,6 +257,30 @@ export default function ChatPanel({ context, toolType }: Props) {
               )}
             </div>
           </div>
+
+          {user && sessions.length > 0 && (
+            <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+              <p className="text-xs font-semibold text-indigo-900 mb-2">History</p>
+              <div className="max-h-28 overflow-y-auto space-y-1">
+                {sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => openSession(session)}
+                    className={`w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors ${
+                      currentSessionId === session.id
+                        ? 'bg-indigo-200 text-indigo-900'
+                        : 'bg-white text-indigo-800 hover:bg-indigo-100'
+                    }`}
+                  >
+                    <div className="truncate font-medium">{session.title}</div>
+                    <div className="text-[10px] opacity-70">
+                      {new Date(session.updatedAt).toLocaleString()}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
